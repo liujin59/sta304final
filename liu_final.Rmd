@@ -1,0 +1,112 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(lme4)
+library(knitr)
+```
+
+
+# Data
+
+```{r}
+# install.packages("opendatatoronto") #; or 
+# install.packages("devtools")
+# devtools::install_github("sharlagelfand/opendatatoronto") #; or
+# devtools::install_github("hodgettsp/cesR")
+suppressWarnings(suppressMessages(library("cesR")))
+library(tidyverse)
+```
+
+
+```{r}
+get_ces("ces2019_web")
+census_data <- read_csv("census_data.csv")
+
+```
+
+```{r}
+# data manipulation
+ces2019_web1 <- ces2019_web %>% mutate(sex = case_when(ces2019_web$cps19_gender == 1 ~ "Male",
+                                                       ces2019_web$cps19_gender == 2 ~ "Female",
+                                                       ces2019_web$cps19_gender == 3 ~ "Other"),
+                                       age = cps19_age,                                   
+                                       vote_party = ces2019_web$cps19_votechoice,
+                                       province = case_when(ces2019_web$pes19_province == 1~ "Alberta",
+                                                            ces2019_web$pes19_province == 2~ "British Columbia",
+                                                            ces2019_web$pes19_province == 3~ "Manitoba",
+                                                            ces2019_web$pes19_province == 4~ "New Brunswick",
+                                                            ces2019_web$pes19_province == 5~ "Newfoundland and Labrador",
+                                                            ces2019_web$pes19_province == 6~ "NA",
+                                                            ces2019_web$pes19_province == 7~ "Nova Scotia",
+                                                            ces2019_web$pes19_province == 8~ "NA",
+                                                            ces2019_web$pes19_province == 9~ "Ontario",
+                                                            ces2019_web$pes19_province == 10~ "Prince Edward Island",
+                                                            ces2019_web$pes19_province == 11~ "Quebec",
+                                                            ces2019_web$pes19_province == 12~ "Saskatchewan",
+                                                            ces2019_web$pes19_province == 13~ "NA"),
+                                       language_home = case_when(ces2019_web$pes19_lang == 68 ~ "English",
+                                                                 ces2019_web$pes19_lang == 69 ~ "French",
+                                                                 ces2019_web$pes19_lang > 69 ~ "other"),
+                                       education = case_when(ces2019_web$cps19_education < 5 ~ 0,
+                                                             ces2019_web$cps19_education == 6 ~ 1,
+                                                             ces2019_web$cps19_education < 9 ~ 2,
+                                                             ces2019_web$cps19_education == 9 ~ 3,
+                                                             ces2019_web$cps19_education < 12 ~ 4,
+                                                             ces2019_web$cps19_education == 12 ~ 5)
+                                         )
+```
+
+
+```{r}
+model <- glmer((vote_party==1) ~ age + sex+ (1|province) +language_home+education, 
+               data=ces2019_web1, family="binomial")
+model_con <- glmer((vote_party==2) ~ age + sex+ (1|province) +language_home+education, 
+               data=ces2019_web1, family="binomial")
+```
+
+
+
+```{r tab1}
+knitr::kable(summary(model)$coef, digits=3)
+census_data$estimate1 <-
+  model %>%
+  predict(newdata = census_data, type="response")
+
+store <- census_data %>%
+  mutate(alp_predict_prop = estimate1*n) %>%
+  summarise(alp_predict = sum(alp_predict_prop)/sum(n))
+
+library(knitr)
+results <- data.frame(`Point estimate` = store$alp_predict,
+                      `Margin of error` = qnorm(.975) * sd(census_data$estimate1))
+kable(results, caption="Point estimate and margin of error of probabiliy of voted for Liberal Party",
+      digits=4)
+```
+
+```{r tab2}
+knitr::kable(summary(model_con)$coef, digits=3)
+census_data$estimate2 <-
+  model_con %>%
+  predict(newdata = census_data, type="response")
+
+store <- census_data %>%
+  mutate(alp_predict_prop = estimate2*n) %>%
+  summarise(alp_predict = sum(alp_predict_prop)/sum(n))
+library(knitr)
+results <- data.frame(`Point estimate` = store$alp_predict,
+                      `Margin of error` = qnorm(.975) * sd(census_data$estimate2))
+kable(results, caption="Point estimate and margin of error of probabiliy of voted for Conservative Party",
+      digits=4)
+```
+
+
+
+
+
