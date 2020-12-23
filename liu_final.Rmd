@@ -16,10 +16,6 @@ library(knitr)
 # Data
 
 ```{r}
-# install.packages("opendatatoronto") #; or 
-# install.packages("devtools")
-# devtools::install_github("sharlagelfand/opendatatoronto") #; or
-# devtools::install_github("hodgettsp/cesR")
 suppressWarnings(suppressMessages(library("cesR")))
 library(tidyverse)
 ```
@@ -32,7 +28,6 @@ census_data <- read_csv("census_data.csv")
 ```
 
 ```{r}
-# data manipulation
 ces2019_web1 <- ces2019_web %>% mutate(sex = case_when(ces2019_web$cps19_gender == 1 ~ "Male",
                                                        ces2019_web$cps19_gender == 2 ~ "Female",
                                                        ces2019_web$cps19_gender == 3 ~ "Other"),
